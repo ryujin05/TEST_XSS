@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hứng Sao - Mini Game</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #1a1a2e;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        canvas {
+            background-color: #16213e;
+            border: 3px solid #0f3460;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .instructions {
+            margin-top: 12px;
+            font-size: 14px;
+            color: #a2a8d3;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <div class="instructions">Dùng phím <b>Mũi tên Trái / Phải</b> hoặc <b>A / D</b> để di chuyển. Nhấn <b>Space</b> để
+        chơi lại.</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Trạng thái game
+        let score = 0;
+        let isGameOver = false;
+
+        // Đối tượng người chơi (Thanh hứng)
+        const player = {
+            width: 80,
+            height: 15,
+            x: canvas.width / 2 - 40,
+            y: canvas.height - 30,
+            speed: 7,
+            dx: 0,
+            color: "#e94560"
+        };
+
+        // Mảng chứa các vật thể rơi (Sao và Bom)
+        let items = [];
+
+        // Xử lý sự kiện bàn phím
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+                player.dx = player.speed;
+            } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+                player.dx = -player.speed;
+            } else if (e.code === "Space" && isGameOver) {
+                resetGame();
+            }
+        });
+
+        document.addEventListener("keyup", (e) => {
+            if (
+                e.key === "ArrowRight" || e.key === "d" || e.key === "D" ||
+                e.key === "ArrowLeft" || e.key === "a" || e.key === "A"
+            ) {
+                player.dx = 0;
+            }
+        });
+
+        // Tạo vật thể rơi ngẫu nhiên
+        function spawnItem() {
+            if (Math.random() < 0.03) {
+                const isBomb = Math.random() < 0.25;
+                items.push({
+                    x: Math.random() * (canvas.width - 20) + 10,
+                    y: -15,
+                    radius: 10,
+                    speed: Math.random() * 2 + 2.5 + (score * 0.05),
+                    type: isBomb ? "bomb" : "star"
+                });
+            }
+        }
+
+        // Cập nhật vị trí các đối tượng
+        function update() {
+            if (isGameOver) return;
+
+            player.x += player.dx;
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+            spawnItem();
+
+            for (let i = items.length - 1; i >= 0; i--) {
+                let item = items[i];
+                item.y += item.speed;
+
+                // Kiểm tra va chạm với người chơi
+                if (
+                    item.y + item.radius >= player.y &&
+                    item.y - item.radius <= player.y + player.height &&
+                    item.x + item.radius >= player.x &&
+                    item.x - item.radius <= player.x + player.width
+                ) {
+                    if (item.type === "star") {
+                        score += 1;
+                        items.splice(i, 1);
+                    } else {
+                        isGameOver = true;
+                    }
+                    continue;
+                }
+
+                // Xóa vật thể khi rơi khỏi màn hình
+                if (item.y - item.radius > canvas.height) {
+                    items.splice(i, 1);
+                }
+            }
+        }
+
+        // Vẽ lên Canvas
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Vẽ người chơi
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.roundRect(player.x, player.y, player.width, player.height, 6);
+            ctx.fill();
+
+            // Vẽ các vật thể rơi
+            items.forEach(item => {
+                ctx.beginPath();
+                ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
+                ctx.fillStyle = item.type === "star" ? "#ffd369" : "#ff2e63";
+                ctx.fill();
+                ctx.closePath();
+            });
+
+            // Hiển thị điểm số
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 20px Segoe UI";
+            ctx.fillText(`Điểm: ${score}`, 15, 30);
+
+            // Màn hình Game Over
+            if (isGameOver) {
+                ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = "#ff2e63";
+                ctx.font = "bold 64px Segoe UI";
+                ctx.textAlign = "center";
+                ctx.fillText("GÀ!", canvas.width / 2, canvas.height / 2 - 20);
+
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "20px Segoe UI";
+                ctx.fillText(`Tổng điểm: ${score}`, canvas.width / 2, canvas.height / 2 + 25);
+
+                ctx.fillStyle = "#ffd369";
+                ctx.fillText("Nhấn phím SPACE để chơi lại", canvas.width / 2, canvas.height / 2 + 65);
+                ctx.textAlign = "left";
+            }
+        }
+
+        // Vòng lặp chính của game
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Khởi động lại game
+        function resetGame() {
+            score = 0;
+            items = [];
+            isGameOver = false;
+            player.x = canvas.width / 2 - player.width / 2;
+        }
+
+        // Bắt đầu chạy
+        gameLoop();
+    </script>
+</body>
+
+</html>
